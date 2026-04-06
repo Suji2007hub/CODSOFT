@@ -1,0 +1,588 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Minimax X-Ray | Tic-Tac-Toe with AI Visualization</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', 'Roboto', system-ui, sans-serif;
+            background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            display: grid;
+            grid-template-columns: 1fr 350px;
+            gap: 20px;
+        }
+
+        /* Game Area */
+        .game-area {
+            background: white;
+            border-radius: 20px;
+            padding: 30px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+        }
+
+        .game-header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        .game-header h1 {
+            font-size: 28px;
+            color: #1e3c72;
+            margin-bottom: 10px;
+        }
+
+        .game-header p {
+            color: #666;
+            font-size: 14px;
+        }
+
+        /* Difficulty Slider */
+        .difficulty-section {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 12px;
+            margin-bottom: 20px;
+        }
+
+        .difficulty-label {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 10px;
+            font-weight: bold;
+        }
+
+        input[type="range"] {
+            width: 100%;
+            margin: 10px 0;
+        }
+
+        .difficulty-desc {
+            font-size: 12px;
+            color: #666;
+            margin-top: 5px;
+        }
+
+        /* Board */
+        .board-container {
+            display: flex;
+            justify-content: center;
+            margin: 20px 0;
+        }
+
+        .board {
+            display: grid;
+            grid-template-columns: repeat(3, 120px);
+            grid-template-rows: repeat(3, 120px);
+            gap: 8px;
+            background: #2c3e50;
+            padding: 8px;
+            border-radius: 16px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+        }
+
+        .cell {
+            background: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 48px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.2s;
+            position: relative;
+            border-radius: 12px;
+        }
+
+        .cell:hover {
+            transform: scale(1.02);
+            box-shadow: 0 0 15px rgba(102,126,234,0.3);
+        }
+
+        .cell.disabled {
+            cursor: not-allowed;
+        }
+
+        .cell.winning-cell {
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+            color: white;
+            animation: pulse 0.5s ease;
+        }
+
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+        }
+
+        /* Score Heatmap */
+        .score-overlay {
+            position: absolute;
+            bottom: 5px;
+            right: 8px;
+            font-size: 11px;
+            font-family: monospace;
+            font-weight: bold;
+            padding: 2px 5px;
+            border-radius: 8px;
+            background: rgba(0,0,0,0.7);
+            color: white;
+        }
+
+        /* Game Status */
+        .game-status {
+            text-align: center;
+            padding: 15px;
+            background: #f8f9fa;
+            border-radius: 12px;
+            margin-top: 20px;
+            font-size: 18px;
+            font-weight: bold;
+        }
+
+        .reset-btn {
+            width: 100%;
+            padding: 12px;
+            margin-top: 15px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 10px;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .reset-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102,126,234,0.4);
+        }
+
+        /* Sidebar Stats */
+        .stats-sidebar {
+            background: white;
+            border-radius: 20px;
+            padding: 25px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        .stat-card {
+            background: linear-gradient(135deg, #667eea15 0%, #764ba215 100%);
+            padding: 15px;
+            border-radius: 12px;
+            border-left: 4px solid #667eea;
+        }
+
+        .stat-card h3 {
+            font-size: 14px;
+            color: #666;
+            margin-bottom: 10px;
+        }
+
+        .stat-value {
+            font-size: 32px;
+            font-weight: bold;
+            color: #667eea;
+        }
+
+        .stat-sub {
+            font-size: 12px;
+            color: #999;
+            margin-top: 5px;
+        }
+
+        .thinking-log {
+            background: #1e1e2e;
+            color: #a6e22e;
+            padding: 15px;
+            border-radius: 12px;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+
+        .thinking-log h3 {
+            color: #f8f8f2;
+            margin-bottom: 10px;
+            font-size: 14px;
+        }
+
+        .log-entry {
+            padding: 8px;
+            border-bottom: 1px solid #333;
+            font-size: 11px;
+        }
+
+        .log-entry strong {
+            color: #f1fa8c;
+        }
+
+        @media (max-width: 900px) {
+            .container {
+                grid-template-columns: 1fr;
+            }
+            .board {
+                grid-template-columns: repeat(3, 90px);
+                grid-template-rows: repeat(3, 90px);
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="game-area">
+            <div class="game-header">
+                <h1>🎮 Minimax X-Ray Tic-Tac-Toe</h1>
+                <p>Watch the AI think | See every score | Understand game theory</p>
+            </div>
+
+            <div class="difficulty-section">
+                <div class="difficulty-label">
+                    <span>🤖 AI Difficulty</span>
+                    <span id="difficultyName">Hard (Full Minimax)</span>
+                </div>
+                <input type="range" id="difficultySlider" min="0" max="3" value="2" step="1">
+                <div class="difficulty-desc" id="difficultyDesc">
+                    Full Minimax - Evaluates all possible moves recursively
+                </div>
+            </div>
+
+            <div class="board-container">
+                <div class="board" id="board">
+                    <!-- 9 cells will be generated here -->
+                </div>
+            </div>
+
+            <div class="game-status" id="gameStatus">
+                Your turn! (You are X)
+            </div>
+
+            <button class="reset-btn" id="resetBtn">🔄 New Game</button>
+        </div>
+
+        <div class="stats-sidebar">
+            <div class="stat-card">
+                <h3>🎯 Current Move Scores</h3>
+                <div class="stat-value" id="moveCount">0</div>
+                <div class="stat-sub">possible moves with scores</div>
+            </div>
+
+            <div class="stat-card">
+                <h3>🔍 Nodes Evaluated</h3>
+                <div class="stat-value" id="nodesEval">0</div>
+                <div class="stat-sub">game states analyzed</div>
+            </div>
+
+            <div class="stat-card">
+                <h3>✂️ Branches Pruned</h3>
+                <div class="stat-value" id="branchesPruned">0</div>
+                <div class="stat-sub">saved by Alpha-Beta</div>
+            </div>
+
+            <div class="stat-card">
+                <h3>📊 Max Depth</h3>
+                <div class="stat-value" id="maxDepth">0</div>
+                <div class="stat-sub">recursion depth reached</div>
+            </div>
+
+            <div class="stat-card">
+                <h3>⚡ Evaluation Time</h3>
+                <div class="stat-value" id="evalTime">0</div>
+                <div class="stat-sub">milliseconds per move</div>
+            </div>
+
+            <div class="thinking-log">
+                <h3>🧠 AI Thinking Log</h3>
+                <div id="thinkingLog">
+                    <div class="log-entry">🤖 AI initialized</div>
+                    <div class="log-entry">💡 Adjust difficulty to see different algorithms</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Game state
+        let board = Array(9).fill(null);
+        let gameActive = true;
+        let currentPlayer = 'X'; // X = human, O = AI
+        let aiDifficulty = 2; // 0=easy,1=medium,2=hard,3=unbeatable
+        
+        // DOM elements
+        const boardElement = document.getElementById('board');
+        const gameStatus = document.getElementById('gameStatus');
+        const difficultySlider = document.getElementById('difficultySlider');
+        const difficultyName = document.getElementById('difficultyName');
+        const difficultyDesc = document.getElementById('difficultyDesc');
+        const resetBtn = document.getElementById('resetBtn');
+        
+        // Stats elements
+        const moveCountEl = document.getElementById('moveCount');
+        const nodesEvalEl = document.getElementById('nodesEval');
+        const branchesPrunedEl = document.getElementById('branchesPruned');
+        const maxDepthEl = document.getElementById('maxDepth');
+        const evalTimeEl = document.getElementById('evalTime');
+        const thinkingLogEl = document.getElementById('thinkingLog');
+        
+        // Score colors for heatmap
+        function getScoreColor(score) {
+            if (score === null) return 'transparent';
+            if (score >= 8) return 'rgba(72, 187, 120, 0.9)';  // Dark green - great move
+            if (score >= 5) return 'rgba(104, 211, 145, 0.8)'; // Light green
+            if (score >= 1) return 'rgba(198, 246, 213, 0.7)'; // Very light green
+            if (score === 0) return 'rgba(160, 174, 192, 0.5)'; // Gray - neutral
+            if (score <= -5) return 'rgba(245, 101, 101, 0.9)'; // Red - bad move
+            if (score <= -1) return 'rgba(252, 165, 165, 0.7)'; // Light red
+            return 'rgba(253, 186, 116, 0.6)'; // Orange - slightly negative
+        }
+        
+        function addLogEntry(message, type = 'info') {
+            const entry = document.createElement('div');
+            entry.className = 'log-entry';
+            const timestamp = new Date().toLocaleTimeString();
+            entry.innerHTML = `<strong>[${timestamp}]</strong> ${message}`;
+            thinkingLogEl.appendChild(entry);
+            thinkingLogEl.scrollTop = thinkingLogEl.scrollHeight;
+            
+            // Keep only last 20 entries
+            while (thinkingLogEl.children.length > 20) {
+                thinkingLogEl.removeChild(thinkingLogEl.children[1]);
+            }
+        }
+        
+        function renderBoard(scores = null) {
+            boardElement.innerHTML = '';
+            for (let i = 0; i < 9; i++) {
+                const cell = document.createElement('div');
+                cell.className = 'cell';
+                if (!gameActive || board[i] !== null || currentPlayer !== 'X') {
+                    cell.classList.add('disabled');
+                }
+                cell.textContent = board[i] || '';
+                cell.style.fontSize = board[i] ? '48px' : '24px';
+                cell.style.fontWeight = 'bold';
+                
+                // Add score heatmap
+                if (scores && scores[i] !== undefined && board[i] === null && gameActive) {
+                    const score = scores[i];
+                    cell.style.background = getScoreColor(score);
+                    
+                    const scoreOverlay = document.createElement('div');
+                    scoreOverlay.className = 'score-overlay';
+                    scoreOverlay.textContent = score;
+                    cell.appendChild(scoreOverlay);
+                } else if (board[i] === null) {
+                    cell.style.background = 'white';
+                }
+                
+                // Check if this is a winning cell
+                if (window.currentWinningLine && window.currentWinningLine.includes(i)) {
+                    cell.classList.add('winning-cell');
+                }
+                
+                cell.addEventListener('click', () => makeMove(i));
+                boardElement.appendChild(cell);
+            }
+        }
+        
+        async function makeMove(position) {
+            if (!gameActive || board[position] !== null || currentPlayer !== 'X') {
+                return;
+            }
+            
+            // Human move
+            board[position] = 'X';
+            renderBoard();
+            
+            // Check win/draw
+            const gameState = checkGameState();
+            if (gameState.gameOver) {
+                gameActive = false;
+                gameStatus.textContent = gameState.message;
+                addLogEntry(gameState.message);
+                renderBoard();
+                return;
+            }
+            
+            // Switch to AI
+            currentPlayer = 'O';
+            gameStatus.textContent = "🤖 AI is thinking...";
+            renderBoard();
+            
+            // AI move
+            setTimeout(() => aiMove(), 100);
+        }
+        
+        async function aiMove() {
+            if (!gameActive || currentPlayer !== 'O') return;
+            
+            addLogEntry(`AI thinking with ${getDifficultyName(aiDifficulty)}...`);
+            
+            const startTime = performance.now();
+            
+            // Get AI move from backend
+            const response = await fetch('/ai_move', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    board: board,
+                    difficulty: aiDifficulty
+                })
+            });
+            
+            const data = await response.json();
+            const endTime = performance.now();
+            
+            // Update stats
+            moveCountEl.textContent = data.move_scores?.length || 0;
+            nodesEvalEl.textContent = data.nodes_evaluated || 0;
+            branchesPrunedEl.textContent = data.branches_pruned || 0;
+            maxDepthEl.textContent = data.max_depth || 0;
+            evalTimeEl.textContent = data.evaluation_time?.toFixed(2) || 0;
+            
+            // Display move scores on board
+            if (data.move_scores) {
+                const scoreMap = {};
+                data.move_scores.forEach(ms => {
+                    scoreMap[ms.position] = ms.score;
+                });
+                renderBoard(scoreMap);
+            }
+            
+            // Make the move
+            if (data.move !== undefined && board[data.move] === null) {
+                board[data.move] = 'O';
+                addLogEntry(`🤖 AI chose position ${data.move} with score ${data.score}`);
+                if (data.score >= 8) {
+                    addLogEntry(`✨ Excellent move! (Score: ${data.score})`);
+                } else if (data.score <= -5) {
+                    addLogEntry(`⚠️ Suboptimal move (Score: ${data.score})`);
+                }
+            }
+            
+            renderBoard();
+            
+            // Check game state
+            const gameState = checkGameState();
+            if (gameState.gameOver) {
+                gameActive = false;
+                gameStatus.textContent = gameState.message;
+                addLogEntry(gameState.message);
+                renderBoard();
+                return;
+            }
+            
+            // Switch back to human
+            currentPlayer = 'X';
+            gameStatus.textContent = "Your turn! (You are X)";
+            
+            if (data.move_scores) {
+                renderBoard(scoreMapFromArray(data.move_scores));
+            }
+        }
+        
+        function scoreMapFromArray(scores) {
+            const map = {};
+            scores.forEach(s => { map[s.position] = s.score; });
+            return map;
+        }
+        
+        function checkGameState() {
+            const winPatterns = [
+                [0,1,2], [3,4,5], [6,7,8],
+                [0,3,6], [1,4,7], [2,5,8],
+                [0,4,8], [2,4,6]
+            ];
+            
+            for (let pattern of winPatterns) {
+                const [a,b,c] = pattern;
+                if (board[a] && board[a] === board[b] && board[a] === board[c]) {
+                    window.currentWinningLine = pattern;
+                    const winner = board[a];
+                    if (winner === 'X') {
+                        return { gameOver: true, message: "🎉 You won! Congratulations!" };
+                    } else {
+                        return { gameOver: true, message: "🤖 AI wins! Better luck next time!" };
+                    }
+                }
+            }
+            
+            if (board.every(cell => cell !== null)) {
+                window.currentWinningLine = null;
+                return { gameOver: true, message: "📊 It's a draw!" };
+            }
+            
+            window.currentWinningLine = null;
+            return { gameOver: false, message: "" };
+        }
+        
+        function getDifficultyName(level) {
+            const names = ['Easy (Random)', 'Medium (1-Ply)', 'Hard (Full Minimax)', 'Unbeatable (Alpha-Beta)'];
+            return names[level];
+        }
+        
+        function getDifficultyDesc(level) {
+            const descs = [
+                'Random moves - no intelligence',
+                'Looks 1 move ahead - misses traps',
+                'Full Minimax - evaluates all possibilities',
+                'Minimax + Alpha-Beta pruning - optimal play'
+            ];
+            return descs[level];
+        }
+        
+        difficultySlider.addEventListener('input', (e) => {
+            aiDifficulty = parseInt(e.target.value);
+            difficultyName.textContent = getDifficultyName(aiDifficulty);
+            difficultyDesc.textContent = getDifficultyDesc(aiDifficulty);
+            addLogEntry(`Difficulty changed to ${getDifficultyName(aiDifficulty)}`);
+            resetGame();
+        });
+        
+        function resetGame() {
+            board = Array(9).fill(null);
+            gameActive = true;
+            currentPlayer = 'X';
+            window.currentWinningLine = null;
+            gameStatus.textContent = "Your turn! (You are X)";
+            renderBoard();
+            addLogEntry("Game reset. New match started!");
+            
+            // Reset stats
+            moveCountEl.textContent = '0';
+            nodesEvalEl.textContent = '0';
+            branchesPrunedEl.textContent = '0';
+            maxDepthEl.textContent = '0';
+            evalTimeEl.textContent = '0';
+        }
+        
+        resetBtn.addEventListener('click', resetGame);
+        
+        // Initialize board
+        function init() {
+            renderBoard();
+            addLogEntry("🎮 Game ready! You are X, AI is O");
+            addLogEntry("💡 Watch the score heatmap to see AI's thinking");
+        }
+        
+        init();
+    </script>
+</body>
+</html>
