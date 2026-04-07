@@ -1,13 +1,21 @@
 """
-Minimal Flask Web Interface for Chatbot
+web_interface.py
+Flask Web Interface for Rule-Based Chatbot
+
+This module provides a browser-based chat UI.
+It imports the core chatbot engine and exposes REST endpoints.
 """
 
 from flask import Flask, render_template_string, request, jsonify
 from chatbot_core import RuleBasedChatbot, Personality
 
+# Initialize Flask app
 app = Flask(__name__)
+
+# Create a single instance of the chatbot (shared across all sessions)
 bot = RuleBasedChatbot(Personality.CASUAL)
 
+# HTML template embedded directly (no external file needed for simplicity)
 HTML_TEMPLATE = """
 <!DOCTYPE html>
 <html>
@@ -159,11 +167,13 @@ HTML_TEMPLATE = """
     </div>
     
     <script>
+        // DOM elements
         const messagesDiv = document.getElementById('messages');
         const userInput = document.getElementById('userInput');
         const sendBtn = document.getElementById('sendBtn');
         const personalitySelect = document.getElementById('personality');
         
+        // Add a message to the chat window
         function addMessage(text, isUser, intent = null) {
             const messageDiv = document.createElement('div');
             messageDiv.className = `message ${isUser ? 'user-message' : 'bot-message'}`;
@@ -184,13 +194,16 @@ HTML_TEMPLATE = """
             messageDiv.scrollIntoView({ behavior: 'smooth' });
         }
         
+        // Send user message to backend and get bot response
         async function sendMessage() {
             const message = userInput.value.trim();
             if (!message) return;
             
+            // Display user message immediately
             addMessage(message, true);
             userInput.value = '';
             
+            // Call Flask endpoint
             const response = await fetch('/chat', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -198,9 +211,11 @@ HTML_TEMPLATE = """
             });
             
             const data = await response.json();
+            // Display bot response with intent badge
             addMessage(data.response, false, data.intent);
         }
         
+        // Change personality via backend
         async function changePersonality() {
             const personality = personalitySelect.value;
             const response = await fetch('/personality', {
@@ -211,12 +226,14 @@ HTML_TEMPLATE = """
             addMessage(`Personality changed to ${personality} mode`, false, 'SYSTEM');
         }
         
+        // Event listeners
         sendBtn.addEventListener('click', sendMessage);
         userInput.addEventListener('keypress', (e) => {
             if (e.key === 'Enter') sendMessage();
         });
         personalitySelect.addEventListener('change', changePersonality);
         
+        // Quick reply buttons
         document.querySelectorAll('.quick-reply').forEach(btn => {
             btn.addEventListener('click', () => {
                 userInput.value = btn.textContent;
@@ -230,10 +247,16 @@ HTML_TEMPLATE = """
 
 @app.route('/')
 def index():
+    """Serve the main chat page."""
     return render_template_string(HTML_TEMPLATE)
 
 @app.route('/chat', methods=['POST'])
 def chat():
+    """
+    Handle user message and return bot response.
+    Expects JSON: {"message": "user input"}
+    Returns JSON: {"response": "bot text", "intent": "detected intent"}
+    """
     data = request.json
     user_input = data.get('message', '')
     response = bot.get_response(user_input)
@@ -244,6 +267,10 @@ def chat():
 
 @app.route('/personality', methods=['POST'])
 def set_personality():
+    """
+    Change chatbot personality.
+    Expects JSON: {"personality": "casual/formal/sarcastic"}
+    """
     data = request.json
     personality_name = data.get('personality', 'casual')
     try:
@@ -254,4 +281,6 @@ def set_personality():
         return jsonify({'status': 'error'})
 
 if __name__ == '__main__':
+    # Run Flask development server
+    # Access at http://127.0.0.1:5000
     app.run(debug=True, port=5000)
