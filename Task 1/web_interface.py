@@ -2,261 +2,328 @@
 web_interface.py
 Flask Web Interface for Rule-Based Chatbot
 
-This module provides a browser-based chat UI.
-It imports the core chatbot engine and exposes REST endpoints.
+Provides a browser-based chat UI with personality selector and quick replies.
+All logic remains unchanged – only the frontend design is refined.
 """
 
 from flask import Flask, render_template_string, request, jsonify
 from chatbot_core import RuleBasedChatbot, Personality
 
-# Initialize Flask app
 app = Flask(__name__)
-
-# Create a single instance of the chatbot (shared across all sessions)
 bot = RuleBasedChatbot(Personality.CASUAL)
 
-# HTML template embedded directly (no external file needed for simplicity)
+# Clean, modern HTML template – no "AI generated" look
 HTML_TEMPLATE = """
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-    <title>RuleBot</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+    <title>RuleBot | Intent‑Driven Chatbot</title>
     <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; }
+        /* ---------- RESET & BASE ---------- */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
         body {
-            font-family: 'Segoe UI', system-ui, sans-serif;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            height: 100vh;
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, sans-serif;
+            background: #eef2f5;
             display: flex;
             justify-content: center;
             align-items: center;
+            min-height: 100vh;
+            padding: 1.5rem;
         }
-        .chat-container {
-            width: 500px;
-            height: 700px;
+
+        /* main chat card */
+        .chat-card {
+            max-width: 800px;
+            width: 100%;
             background: white;
-            border-radius: 20px;
-            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
-            display: flex;
-            flex-direction: column;
+            border-radius: 32px;
+            box-shadow: 0 20px 35px -12px rgba(0,0,0,0.1);
             overflow: hidden;
+            transition: transform 0.2s ease;
         }
+
+        /* header */
         .chat-header {
-            background: #2d3748;
+            background: #1e2a3e;
             color: white;
-            padding: 20px;
+            padding: 1.5rem 2rem;
             text-align: center;
         }
+        .chat-header h1 {
+            font-weight: 600;
+            font-size: 1.8rem;
+            letter-spacing: -0.3px;
+        }
+        .chat-header p {
+            font-size: 0.85rem;
+            opacity: 0.8;
+            margin-top: 0.3rem;
+        }
         .personality-select {
-            margin-top: 10px;
-            padding: 5px 10px;
-            border-radius: 5px;
+            margin-top: 1rem;
+            padding: 0.5rem 1rem;
+            border-radius: 40px;
             border: none;
+            background: #2d3e50;
+            color: white;
+            font-weight: 500;
+            cursor: pointer;
+            font-size: 0.85rem;
         }
-        .chat-messages {
-            flex: 1;
+
+        /* message area */
+        .message-area {
+            height: 450px;
             overflow-y: auto;
-            padding: 20px;
-            background: #f7fafc;
-        }
-        .message {
-            margin-bottom: 15px;
+            padding: 1.5rem;
+            background: #f9fbfd;
             display: flex;
+            flex-direction: column;
+            gap: 1rem;
+        }
+
+        .message {
+            display: flex;
+            max-width: 85%;
         }
         .user-message {
+            align-self: flex-end;
             justify-content: flex-end;
         }
         .bot-message {
-            justify-content: flex-start;
+            align-self: flex-start;
         }
-        .message-content {
-            max-width: 70%;
-            padding: 10px 15px;
-            border-radius: 18px;
-            font-size: 14px;
+        .bubble {
+            padding: 0.75rem 1.2rem;
+            border-radius: 24px;
+            font-size: 0.9rem;
+            line-height: 1.4;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.05);
         }
-        .user-message .message-content {
-            background: #667eea;
+        .user-message .bubble {
+            background: #1e2a3e;
             color: white;
+            border-bottom-right-radius: 6px;
         }
-        .bot-message .message-content {
+        .bot-message .bubble {
             background: white;
-            color: #2d3748;
-            box-shadow: 0 1px 2px rgba(0,0,0,0.1);
+            color: #1e2a3e;
+            border-bottom-left-radius: 6px;
+            border: 1px solid #e2edf2;
         }
         .intent-badge {
-            font-size: 10px;
+            font-size: 0.65rem;
             opacity: 0.7;
-            margin-top: 5px;
+            margin-top: 0.3rem;
+            font-family: 'SF Mono', monospace;
         }
-        .chat-input {
-            padding: 20px;
-            background: white;
-            border-top: 1px solid #e2e8f0;
-            display: flex;
-            gap: 10px;
+        .user-message .intent-badge {
+            color: #bdd4e8;
         }
-        .chat-input input {
-            flex: 1;
-            padding: 10px;
-            border: 1px solid #e2e8f0;
-            border-radius: 25px;
-            outline: none;
-        }
-        .chat-input button {
-            padding: 10px 20px;
-            background: #667eea;
-            color: white;
-            border: none;
-            border-radius: 25px;
-            cursor: pointer;
-        }
+
+        /* quick replies */
         .quick-replies {
+            padding: 0.8rem 1.5rem;
+            background: white;
+            border-top: 1px solid #e9ecef;
             display: flex;
-            gap: 8px;
-            padding: 10px 20px;
-            overflow-x: auto;
+            gap: 0.6rem;
+            flex-wrap: wrap;
         }
-        .quick-reply {
-            padding: 5px 12px;
-            background: #edf2f7;
+        .quick-btn {
+            background: #f1f5f9;
             border: none;
-            border-radius: 15px;
+            padding: 0.4rem 1rem;
+            border-radius: 40px;
+            font-size: 0.8rem;
             cursor: pointer;
-            font-size: 12px;
-            white-space: nowrap;
+            transition: all 0.15s;
+            color: #1e2a3e;
         }
-        .quick-reply:hover {
-            background: #667eea;
+        .quick-btn:hover {
+            background: #e2e8f0;
+            transform: translateY(-1px);
+        }
+
+        /* input area */
+        .input-area {
+            padding: 1rem 1.5rem 1.5rem;
+            background: white;
+            border-top: 1px solid #e9ecef;
+            display: flex;
+            gap: 0.8rem;
+        }
+        .input-area input {
+            flex: 1;
+            padding: 0.8rem 1.2rem;
+            border: 1px solid #cbd5e1;
+            border-radius: 48px;
+            font-size: 0.9rem;
+            outline: none;
+            transition: 0.15s;
+        }
+        .input-area input:focus {
+            border-color: #2c6e9e;
+            box-shadow: 0 0 0 2px rgba(44,110,158,0.1);
+        }
+        .input-area button {
+            background: #1e2a3e;
             color: white;
+            border: none;
+            padding: 0 1.5rem;
+            border-radius: 48px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background 0.15s;
+        }
+        .input-area button:hover {
+            background: #0f1a2a;
+        }
+
+        /* scrollbar */
+        .message-area::-webkit-scrollbar {
+            width: 6px;
+        }
+        .message-area::-webkit-scrollbar-track {
+            background: #e2e8f0;
+            border-radius: 10px;
+        }
+        .message-area::-webkit-scrollbar-thumb {
+            background: #94a3b8;
+            border-radius: 10px;
+        }
+
+        @media (max-width: 600px) {
+            .chat-card {
+                border-radius: 24px;
+            }
+            .message {
+                max-width: 95%;
+            }
         }
     </style>
 </head>
 <body>
-    <div class="chat-container">
-        <div class="chat-header">
-            <h2>🤖 RuleBot</h2>
-            <select class="personality-select" id="personality">
-                <option value="casual">😊 Casual</option>
-                <option value="formal">🎩 Formal</option>
-                <option value="sarcastic">🙄 Sarcastic</option>
-            </select>
-        </div>
-        
-        <div class="chat-messages" id="messages">
-            <div class="message bot-message">
-                <div class="message-content">
-                    Hello! I'm a rule-based chatbot. Ask me anything!
-                    <div class="intent-badge">Intent: WELCOME</div>
-                </div>
+<div class="chat-card">
+    <div class="chat-header">
+        <h1>🤖 RuleBot</h1>
+        <p>rule‑based · intent detection · personality modes</p>
+        <select class="personality-select" id="personalitySelect">
+            <option value="casual">😊 Casual</option>
+            <option value="formal">🎩 Formal</option>
+            <option value="sarcastic">🙄 Sarcastic</option>
+        </select>
+    </div>
+
+    <div class="message-area" id="messageArea">
+        <div class="message bot-message">
+            <div class="bubble">
+                Hello! I'm a rule‑based chatbot. Ask me anything.<br>
+                <span class="intent-badge">Intent: WELCOME</span>
             </div>
         </div>
-        
-        <div class="quick-replies" id="quickReplies">
-            <button class="quick-reply">Hello</button>
-            <button class="quick-reply">Tell me a joke</button>
-            <button class="quick-reply">What time is it?</button>
-            <button class="quick-reply">5 + 3</button>
-            <button class="quick-reply">Help</button>
-        </div>
-        
-        <div class="chat-input">
-            <input type="text" id="userInput" placeholder="Type your message..." autocomplete="off">
-            <button id="sendBtn">Send</button>
-        </div>
     </div>
-    
-    <script>
-        // DOM elements
-        const messagesDiv = document.getElementById('messages');
-        const userInput = document.getElementById('userInput');
-        const sendBtn = document.getElementById('sendBtn');
-        const personalitySelect = document.getElementById('personality');
-        
-        // Add a message to the chat window
-        function addMessage(text, isUser, intent = null) {
-            const messageDiv = document.createElement('div');
-            messageDiv.className = `message ${isUser ? 'user-message' : 'bot-message'}`;
-            
-            const contentDiv = document.createElement('div');
-            contentDiv.className = 'message-content';
-            contentDiv.innerHTML = text;
-            
-            if (intent && !isUser) {
-                const intentSpan = document.createElement('div');
-                intentSpan.className = 'intent-badge';
-                intentSpan.textContent = `Intent: ${intent}`;
-                contentDiv.appendChild(intentSpan);
-            }
-            
-            messageDiv.appendChild(contentDiv);
-            messagesDiv.appendChild(messageDiv);
-            messageDiv.scrollIntoView({ behavior: 'smooth' });
+
+    <div class="quick-replies" id="quickReplies">
+        <button class="quick-btn">Hello</button>
+        <button class="quick-btn">Tell me a joke</button>
+        <button class="quick-btn">What time is it?</button>
+        <button class="quick-btn">5 + 3</button>
+        <button class="quick-btn">Help</button>
+    </div>
+
+    <div class="input-area">
+        <input type="text" id="userInput" placeholder="Type your message..." autocomplete="off">
+        <button id="sendBtn">Send</button>
+    </div>
+</div>
+
+<script>
+    const messageArea = document.getElementById('messageArea');
+    const userInput = document.getElementById('userInput');
+    const sendBtn = document.getElementById('sendBtn');
+    const personalitySelect = document.getElementById('personalitySelect');
+
+    function addMessage(text, isUser, intent = null) {
+        const msgDiv = document.createElement('div');
+        msgDiv.className = `message ${isUser ? 'user-message' : 'bot-message'}`;
+        const bubble = document.createElement('div');
+        bubble.className = 'bubble';
+        bubble.innerHTML = text;
+        if (!isUser && intent) {
+            const badge = document.createElement('div');
+            badge.className = 'intent-badge';
+            badge.textContent = `Intent: ${intent}`;
+            bubble.appendChild(badge);
         }
-        
-        // Send user message to backend and get bot response
-        async function sendMessage() {
-            const message = userInput.value.trim();
-            if (!message) return;
-            
-            // Display user message immediately
-            addMessage(message, true);
-            userInput.value = '';
-            
-            // Call Flask endpoint
-            const response = await fetch('/chat', {
+        msgDiv.appendChild(bubble);
+        messageArea.appendChild(msgDiv);
+        msgDiv.scrollIntoView({ behavior: 'smooth', block: 'end' });
+    }
+
+    async function sendMessage() {
+        const message = userInput.value.trim();
+        if (!message) return;
+        addMessage(message, true);
+        userInput.value = '';
+
+        try {
+            const res = await fetch('/chat', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ message: message })
             });
-            
-            const data = await response.json();
-            // Display bot response with intent badge
+            const data = await res.json();
             addMessage(data.response, false, data.intent);
+        } catch (err) {
+            addMessage('⚠️ Server error. Is the backend running?', false, 'ERROR');
         }
-        
-        // Change personality via backend
-        async function changePersonality() {
-            const personality = personalitySelect.value;
-            const response = await fetch('/personality', {
+    }
+
+    async function changePersonality() {
+        const personality = personalitySelect.value;
+        try {
+            await fetch('/personality', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ personality: personality })
             });
-            addMessage(`Personality changed to ${personality} mode`, false, 'SYSTEM');
+            addMessage(`🧠 Personality changed to ${personality} mode`, false, 'SYSTEM');
+        } catch (err) {
+            console.warn('failed to update personality');
         }
-        
-        // Event listeners
-        sendBtn.addEventListener('click', sendMessage);
-        userInput.addEventListener('keypress', (e) => {
-            if (e.key === 'Enter') sendMessage();
+    }
+
+    sendBtn.addEventListener('click', sendMessage);
+    userInput.addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') sendMessage();
+    });
+    personalitySelect.addEventListener('change', changePersonality);
+
+    document.querySelectorAll('.quick-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+            userInput.value = btn.textContent;
+            sendMessage();
         });
-        personalitySelect.addEventListener('change', changePersonality);
-        
-        // Quick reply buttons
-        document.querySelectorAll('.quick-reply').forEach(btn => {
-            btn.addEventListener('click', () => {
-                userInput.value = btn.textContent;
-                sendMessage();
-            });
-        });
-    </script>
+    });
+</script>
 </body>
 </html>
 """
 
 @app.route('/')
 def index():
-    """Serve the main chat page."""
     return render_template_string(HTML_TEMPLATE)
 
 @app.route('/chat', methods=['POST'])
 def chat():
-    """
-    Handle user message and return bot response.
-    Expects JSON: {"message": "user input"}
-    Returns JSON: {"response": "bot text", "intent": "detected intent"}
-    """
     data = request.json
     user_input = data.get('message', '')
     response = bot.get_response(user_input)
@@ -267,10 +334,6 @@ def chat():
 
 @app.route('/personality', methods=['POST'])
 def set_personality():
-    """
-    Change chatbot personality.
-    Expects JSON: {"personality": "casual/formal/sarcastic"}
-    """
     data = request.json
     personality_name = data.get('personality', 'casual')
     try:
@@ -281,6 +344,4 @@ def set_personality():
         return jsonify({'status': 'error'})
 
 if __name__ == '__main__':
-    # Run Flask development server
-    # Access at http://127.0.0.1:5000
     app.run(debug=True, port=5000)

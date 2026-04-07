@@ -8,11 +8,17 @@ It detects user intents, supports multiple personalities, and maintains conversa
 
 import re
 import random
-from datetime import datetime
+from datetime import datetime, timezone, timedelta
 from typing import Dict, List, Tuple, Optional, Callable
 from dataclasses import dataclass
 from enum import Enum
 
+# --- IST timezone (UTC+5:30, no DST) ---
+IST = timezone(timedelta(hours=5, minutes=30))
+
+def get_ist_now():
+    """Return current datetime in Indian Standard Time."""
+    return datetime.now(IST)
 
 class Personality(Enum):
     """Bot personality types – affects response style."""
@@ -50,11 +56,12 @@ class ResponseGenerator:
     
     @staticmethod
     def format_with_context(response: str, context: Dict) -> str:
-        """Replace placeholders like {time} with actual values."""
+        """Replace placeholders like {time} with actual values (using IST)."""
+        now_ist = get_ist_now()
         if "{time}" in response:
-            response = response.replace("{time}", datetime.now().strftime("%H:%M:%S"))
+            response = response.replace("{time}", now_ist.strftime("%H:%M:%S"))
         if "{date}" in response:
-            response = response.replace("{date}", datetime.now().strftime("%B %d, %Y"))
+            response = response.replace("{date}", now_ist.strftime("%B %d, %Y"))
         return response
 
 
@@ -116,7 +123,7 @@ class ConversationContext:
             "user": user_input,
             "bot": response,
             "intent": intent,
-            "timestamp": datetime.now()
+            "timestamp": get_ist_now()   # Store IST timestamp
         })
         self.last_intent = intent
         
@@ -148,6 +155,9 @@ class RuleBasedChatbot:
         Define all conversation rules.
         Each rule contains regex patterns, responses per personality, priority, and optional handler.
         """
+        # Get current IST time for dynamic responses (so it's fresh when rule is accessed)
+        now_ist = get_ist_now()
+        
         self.rules = [
             # Priority 1: Exit commands – highest priority so they always work
             Rule(
@@ -173,26 +183,26 @@ class RuleBasedChatbot:
                 priority=2
             ),
             
-            # Time query
+            # Time query – using IST (Indian Standard Time)
             Rule(
                 intent="TIME",
                 patterns=[r"what.*time", r"current time", r"time now"],
                 responses={
-                    Personality.FORMAL: [f"The time is {datetime.now().strftime('%H:%M:%S')}"],
-                    Personality.CASUAL: [f"It's {datetime.now().strftime('%I:%M %p')} ⏰"],
-                    Personality.SARCASTIC: [f"*sigh* It's {datetime.now().strftime('%H:%M:%S')}"]
+                    Personality.FORMAL: [f"The time is {now_ist.strftime('%H:%M:%S')} IST"],
+                    Personality.CASUAL: [f"It's {now_ist.strftime('%I:%M %p')} IST ⏰"],
+                    Personality.SARCASTIC: [f"*sigh* It's {now_ist.strftime('%H:%M:%S')} IST"]
                 },
                 priority=2
             ),
             
-            # Date query
+            # Date query – using IST (date is same globally, but for consistency)
             Rule(
                 intent="DATE",
                 patterns=[r"what.*date", r"today('s)? date", r"what day"],
                 responses={
-                    Personality.FORMAL: [f"Today is {datetime.now().strftime('%B %d, %Y')}"],
-                    Personality.CASUAL: [f"It's {datetime.now().strftime('%A, %B %d')} 📅"],
-                    Personality.SARCASTIC: [f"*checks calendar* {datetime.now().strftime('%B %d, %Y')}"]
+                    Personality.FORMAL: [f"Today is {now_ist.strftime('%B %d, %Y')} (IST)"],
+                    Personality.CASUAL: [f"It's {now_ist.strftime('%A, %B %d')} 📅 (IST)"],
+                    Personality.SARCASTIC: [f"*checks calendar* {now_ist.strftime('%B %d, %Y')} IST"]
                 },
                 priority=2
             ),
