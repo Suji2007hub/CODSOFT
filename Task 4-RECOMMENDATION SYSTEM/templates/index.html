@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Task 4 - Recommendation System</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <header class="topbar">
+        <div class="container topbar-inner">
+            <h1>CineSuggest</h1>
+            <p>Simple movie recommendations for everyday users</p>
+        </div>
+    </header>
+
+    <main class="container layout">
+        <aside class="panel controls">
+            <h2>Choose Preferences</h2>
+
+            <label for="likedTitle">Movie you like</label>
+            <select id="likedTitle">
+                <option value="">No specific movie</option>
+                {% for movie in movies %}
+                <option value="{{ movie }}">{{ movie }}</option>
+                {% endfor %}
+            </select>
+
+            <label>Genres (multi-select)</label>
+            <div id="genreList" class="genre-list">
+                {% for genre in genres %}
+                <button type="button" class="genre-btn" data-genre="{{ genre }}">{{ genre }}</button>
+                {% endfor %}
+            </div>
+
+            <label for="imdbSlider">Minimum IMDB rating: <span id="imdbValue">6.0</span></label>
+            <input id="imdbSlider" type="range" min="0" max="10" step="0.5" value="6">
+
+            <label for="topN">How many results</label>
+            <select id="topN">
+                <option value="4">4</option>
+                <option value="8" selected>8</option>
+                <option value="12">12</option>
+                <option value="16">16</option>
+            </select>
+
+            <div class="btn-row">
+                <button id="recommendBtn" class="primary">Get Recommendations</button>
+                <button id="surpriseBtn">Surprise Me</button>
+            </div>
+
+            <button id="personalizedBtn" class="full-width">Get Personalized Picks</button>
+        </aside>
+
+        <section class="panel trending-panel">
+            <h2>Trending Movies</h2>
+            <div id="trending" class="cards cards-small">
+                {% for movie in trending %}
+                <article class="card trending-card" data-title="{{ movie.title }}">
+                    <h3>{{ movie.title }}</h3>
+                    <p class="badge">IMDB {{ movie.imdb_rating }}</p>
+                    <p class="muted">Click for similar movies</p>
+                </article>
+                {% endfor %}
+            </div>
+        </section>
+
+        <section class="panel results-panel">
+            <h2>Recommendations</h2>
+            <p id="statusText" class="muted">Pick your preferences and click Get Recommendations.</p>
+            <div id="results" class="cards"></div>
+        </section>
+
+        <section class="panel ratings-panel">
+            <h2>Your Ratings</h2>
+            <div id="ratingsList" class="ratings-list">
+                <p class="muted">No ratings yet.</p>
+            </div>
+        </section>
+    </main>
+
+    <script src="{{ url_for('static', filename='script.js') }}"></script>
+</body>
+</html>
