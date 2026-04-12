@@ -1,11 +1,4 @@
-# app.py
-# ============================================================
-# Custom Rule‑Based Chatbot for Internship Project
-# Author: [Your Name]
-# Date: April 2026
-# Design: Priority intent matching + tone modes + memory
-# Features: Time (IST), jokes, calculator, name memory, debug
-# ============================================================
+
 
 import re
 import random

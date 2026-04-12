@@ -123,8 +123,8 @@ To ensure originality, this implementation includes:
 
 ## 👨‍💻 Author & Submission
 
-This project was completed as **Task 1** of the *Code Software Internship Program*.
-All code is original and written by me, [Your Name].
+This project was completed as **Task 1** of the *CodeSoft Internship Program*.
+All code is original and written by me, [V S Sujithraa].
 
 For any questions, feel free to reach out.
 
