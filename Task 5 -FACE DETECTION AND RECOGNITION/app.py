@@ -402,12 +402,26 @@ def train_model():
 
 @app.route('/enroll', methods=['POST'])
 def enroll():
-    data = request.json
-    name = data['name']
-    face_b64 = data['face'].split(',')[1]
-    face_bytes = base64.b64decode(face_b64)
+    data = request.json or {}
+    name = (data.get('name') or '').strip()
+    face_value = data.get('face')
+
+    if not name or not face_value:
+        return jsonify({'success': False, 'error': 'Name and face are required'}), 400
+
+    # Accept both data URL format and raw base64 strings.
+    face_b64 = face_value.split(',', 1)[1] if ',' in face_value else face_value
+
+    try:
+        face_bytes = base64.b64decode(face_b64)
+    except Exception:
+        return jsonify({'success': False, 'error': 'Invalid face image data'}), 400
+
     nparr = np.frombuffer(face_bytes, np.uint8)
     face_img = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
+    if face_img is None:
+        return jsonify({'success': False, 'error': 'Unable to decode face image'}), 400
+
     # Save to data/known_faces/name/
     save_dir = f"data/known_faces/{name}"
     os.makedirs(save_dir, exist_ok=True)
